@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Early Crypto Hunter - Elite AI discovery terminal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0B0F19',
+                        darkcard: '#161D30',
+                        accent: '#3B82F6',
+                        emerald: {
+                            400: '#34d399',
+                            500: '#10b981',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            background-color: #0B0F19;
+            font-family: 'Inter', sans-serif;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #161D30;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2563EB;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+
+        <!-- Header / Banner -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6 mb-6">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-2.5 rounded-xl shadow-lg shadow-blue-500/30">
+                    <i data-lucide="shield-alert" class="w-8 h-8 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                        EARLY CRYPTO HUNTER <span class="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-full font-mono uppercase tracking-widest">ALPHAv1.5</span>
+                    </h1>
+                    <p class="text-slate-400 text-sm">24/7 autonomous scanning, risk mitigation, and self-optimizing prediction engine</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+                <button onclick="triggerScan()" class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20">
+                    <i data-lucide="refresh-cw" class="w-4 h-4 animate-spin-hover"></i> Scan Market Now
+                </button>
+                <button onclick="triggerSimulation()" class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20">
+                    <i data-lucide="cpu" class="w-4 h-4"></i> Simulate Price Progress & Learn
+                </button>
+            </div>
+        </header>
+
+        <!-- Global Market & Learning Stats Grid -->
+        <section class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <!-- Fear & Greed Card -->
+            <div class="bg-darkcard border border-slate-800 p-4 rounded-2xl flex items-center gap-4">
+                <div class="p-3 bg-amber-500/10 text-amber-500 rounded-xl">
+                    <i data-lucide="flame" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <span class="block text-slate-400 text-xs font-semibold uppercase tracking-wider">Fear & Greed</span>
+                    <span class="text-xl font-bold text-white font-mono" id="stat-fng">
+                        {% if opps %}{{ opps[0].global_metrics.fear_greed_index }}{% else %}55{% endif %}
+                    </span>
+                    <span class="text-[10px] text-amber-500 block">Neutral-Greed</span>
+                </div>
+            </div>
+
+            <!-- BTC Dominance Card -->
+            <div class="bg-darkcard border border-slate-800 p-4 rounded-2xl flex items-center gap-4">
+                <div class="p-3 bg-blue-500/10 text-blue-400 rounded-xl">
+                    <i data-lucide="activity" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <span class="block text-slate-400 text-xs font-semibold uppercase tracking-wider">BTC Dominance</span>
+                    <span class="text-xl font-bold text-white font-mono">58.2%</span>
+                    <span class="text-[10px] text-blue-400 block">High Alt Season Bar</span>
+                </div>
+            </div>
+
+            <!-- Model Win Rate Card -->
+            <div class="bg-darkcard border border-slate-800 p-4 rounded-2xl flex items-center gap-4">
+                <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                    <i data-lucide="trending-up" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <span class="block text-slate-400 text-xs font-semibold uppercase tracking-wider">Model Win Rate</span>
+                    <span class="text-xl font-bold text-emerald-400 font-mono" id="stat-winrate">{{ stats.win_rate }}%</span>
+                    <span class="text-[10px] text-slate-400 block" id="stat-trades">From {{ stats.total_predictions }} predictions</span>
+                </div>
+            </div>
+
+            <!-- Avg Return Card -->
+            <div class="bg-darkcard border border-slate-800 p-4 rounded-2xl flex items-center gap-4">
+                <div class="p-3 bg-purple-500/10 text-purple-400 rounded-xl">
+                    <i data-lucide="dollar-sign" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <span class="block text-slate-400 text-xs font-semibold uppercase tracking-wider">Avg Trade ROI</span>
+                    <span class="text-xl font-bold text-white font-mono" id="stat-avgreturn">{{ stats.average_return }}%</span>
+                    <span class="text-[10px] text-purple-400 block" id="stat-active">Active setups: {{ stats.active }}</span>
+                </div>
+            </div>
+
+            <!-- Active Predictions Count Card -->
+            <div class="bg-darkcard border border-slate-800 p-4 rounded-2xl flex items-center gap-4 col-span-2 md:col-span-1">
+                <div class="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl">
+                    <i data-lucide="compass" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <span class="block text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Scanned</span>
+                    <span class="text-xl font-bold text-white font-mono">12 Coins</span>
+                    <span class="text-[10px] text-cyan-400 block">Full dex networks covered</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Dashboard Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Column 1 & 2: Main Top 10 Ranked Coins & Details -->
+            <div class="lg:col-span-2 space-y-6">
+
+                <!-- TOP 10 Ranks table card -->
+                <div class="bg-darkcard border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+                    <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/40">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="award" class="w-5 h-5 text-yellow-400"></i>
+                            <h2 class="text-lg font-bold text-white">Top 10 High-Upside Crypto Opportunities</h2>
+                        </div>
+                        <span class="text-xs font-semibold text-slate-400 bg-slate-800 px-3 py-1 rounded-lg">Ranked dynamically by AI confidence</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-slate-400 text-xs font-semibold uppercase border-b border-slate-800/80 bg-slate-900/20">
+                                    <th class="py-3.5 px-5">Rank</th>
+                                    <th class="py-3.5 px-4">Coin / Ticker</th>
+                                    <th class="py-3.5 px-4">Current Price</th>
+                                    <th class="py-3.5 px-4">Market Cap</th>
+                                    <th class="py-3.5 px-4 text-center">AI Opportunity Score</th>
+                                    <th class="py-3.5 px-4 text-center">Risk Factor</th>
+                                    <th class="py-3.5 px-5 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60" id="opps-table-body">
+                                {% for o in opps %}
+                                <tr onclick="loadCoinDetail('{{ o.ticker }}')" class="hover:bg-slate-800/40 transition-colors cursor-pointer group">
+                                    <td class="py-4 px-5 font-mono text-sm font-semibold text-slate-300">
+                                        {% if loop.index == 1 %}
+                                        <span class="inline-flex items-center gap-1.5 text-yellow-400"><i data-lucide="crown" class="w-4 h-4 fill-yellow-400/20"></i> #1</span>
+                                        {% else %}
+                                        #{{ loop.index }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-4 px-4">
+                                        <div class="flex items-center gap-2.5">
+                                            <div>
+                                                <div class="font-bold text-white group-hover:text-blue-400 transition-colors">{{ o.name }}</div>
+                                                <div class="flex items-center gap-1.5">
+                                                    <span class="text-slate-400 text-xs font-mono font-semibold">{{ o.ticker }}</span>
+                                                    <span class="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded uppercase tracking-wider font-semibold">{{ o.narrative }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-4 font-mono font-semibold text-slate-100">${{ "{:,.4f}".format(o.price) }}</td>
+                                    <td class="py-4 px-4 font-mono text-slate-400 text-sm">${{ "{:,.0f}".format(o.market_cap) }}</td>
+                                    <td class="py-4 px-4 text-center">
+                                        <div class="inline-block px-3 py-1 rounded-full font-mono text-sm font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                            {{ "{:.1f}".format(o.scores.overall_opportunity_score) }}/100
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-4 text-center">
+                                        {% if o.risk.overall_risk_score > 60 %}
+                                        <span class="inline-block px-2.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold uppercase">High Risk ({{ "{:.1f}".format(o.risk.overall_risk_score) }})</span>
+                                        {% elif o.risk.overall_risk_score > 35 %}
+                                        <span class="inline-block px-2.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold uppercase">Medium ({{ "{:.1f}".format(o.risk.overall_risk_score) }})</span>
+                                        {% else %}
+                                        <span class="inline-block px-2.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold uppercase">Low Risk ({{ "{:.1f}".format(o.risk.overall_risk_score) }})</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-4 px-5 text-right">
+                                        <button class="text-blue-400 group-hover:text-blue-300 bg-blue-500/5 hover:bg-blue-500/15 p-1.5 rounded-lg transition-all">
+                                            <i data-lucide="eye" class="w-4.5 h-4.5"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- DEEP ANALYSIS CARD (RENDERED ON CLICK) -->
+                <div id="detail-card-empty" class="bg-darkcard border border-slate-800 border-dashed rounded-2xl p-8 text-center text-slate-400">
+                    <i data-lucide="line-chart" class="w-12 h-12 mx-auto text-slate-500 mb-3"></i>
+                    <h3 class="text-base font-semibold text-slate-300">No Coin Selected for Analysis</h3>
+                    <p class="text-xs text-slate-500 mt-1">Select any coin from the Top 10 table above to load real-time Technical, Risk, and custom Trading Plans.</p>
+                </div>
+
+                <div id="detail-card-container" class="hidden bg-darkcard border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all">
+                    <!-- Title Banner -->
+                    <div class="p-5 border-b border-slate-800 bg-slate-900/40 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <span class="p-2 bg-blue-600/10 text-blue-400 rounded-xl"><i data-lucide="radar" class="w-5 h-5"></i></span>
+                            <div>
+                                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                    <span id="det-name">Name</span> <span class="text-sm font-mono text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 rounded-full" id="det-ticker">TICKER</span>
+                                </h3>
+                                <p class="text-xs text-slate-400">On-chain address: <span class="font-mono text-slate-300" id="det-address">0x...</span></p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-slate-400 block uppercase font-semibold">AI Opportunity Confidence</span>
+                            <span class="text-2xl font-black text-blue-400 font-mono" id="det-conf">88.5%</span>
+                        </div>
+                    </div>
+
+                    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                        <!-- Left Panel: Tactical Trading Plan -->
+                        <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-5 space-y-4">
+                            <div class="flex items-center gap-2 text-indigo-400 font-semibold text-sm border-b border-slate-800 pb-2">
+                                <i data-lucide="compass" class="w-4 h-4"></i> TACTICAL TRADING PLAN
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <span class="text-[10px] text-slate-400 block uppercase font-bold">Suggested Entry</span>
+                                    <span class="text-lg font-bold text-white font-mono" id="det-entry">$0.00</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-rose-400 block uppercase font-bold">Stop Loss (SL)</span>
+                                    <span class="text-lg font-bold text-rose-400 font-mono" id="det-sl">$0.00</span>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-2 border-t border-slate-800 pt-3">
+                                <div>
+                                    <span class="text-[9px] text-emerald-400 block uppercase font-bold">Take Profit 1</span>
+                                    <span class="text-sm font-bold text-emerald-400 font-mono" id="det-tp1">$0.00</span>
+                                </div>
+                                <div>
+                                    <span class="text-[9px] text-emerald-400 block uppercase font-bold">Take Profit 2</span>
+                                    <span class="text-sm font-bold text-emerald-400 font-mono" id="det-tp2">$0.00</span>
+                                </div>
+                                <div>
+                                    <span class="text-[9px] text-emerald-400 block uppercase font-bold">Take Profit 3</span>
+                                    <span class="text-sm font-bold text-emerald-400 font-mono" id="det-tp3">$0.00</span>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4 border-t border-slate-800 pt-3 text-xs">
+                                <div>
+                                    <span class="text-[10px] text-slate-400 block uppercase font-bold">Risk/Reward Ratio</span>
+                                    <span class="font-bold text-white font-mono" id="det-rr">1 : 4.5</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-slate-400 block uppercase font-bold">Expected Holding Time</span>
+                                    <span class="font-bold text-white" id="det-holdtime">1 to 3 Days</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-blue-900/10 border border-blue-900/30 rounded-lg p-3 text-xs text-blue-300">
+                                <strong>AI Selection Thesis:</strong> <span id="det-thesis">Selected due to positive breakout indicators and volume surge.</span>
+                            </div>
+                        </div>
+
+                        <!-- Right Panel: Quantitative Technical & Risk Metrics -->
+                        <div class="space-y-4">
+                            <!-- Technical Indicators Grid -->
+                            <div class="bg-slate-900/20 border border-slate-800/80 rounded-xl p-4">
+                                <div class="flex items-center justify-between text-blue-400 font-semibold text-xs border-b border-slate-800 pb-2 mb-3">
+                                    <span class="flex items-center gap-1.5"><i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i> TECHNICAL INDICATORS</span>
+                                    <span class="text-[10px] bg-blue-500/10 px-2 py-0.5 rounded text-blue-300 uppercase font-mono" id="det-trend">Strong Uptrend</span>
+                                </div>
+
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                                    <div>
+                                        <span class="text-slate-400 block">EMA (9 / 50)</span>
+                                        <span class="font-mono text-slate-200" id="det-ema">1.23 / 1.10</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">RSI (14)</span>
+                                        <span class="font-mono text-slate-200" id="det-rsi">62.5</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">MACD Hist</span>
+                                        <span class="font-mono text-slate-200" id="det-macd">+0.005</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">ADX (Trend Strength)</span>
+                                        <span class="font-mono text-slate-200" id="det-adx">32.1</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">Relative Volume</span>
+                                        <span class="font-mono text-slate-200" id="det-relvol">2.4x</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">Breakout Probability</span>
+                                        <span class="font-mono text-emerald-400 font-bold" id="det-breakout">85.0%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Smart Risk Mitigation Metrics -->
+                            <div class="bg-slate-900/20 border border-slate-800/80 rounded-xl p-4">
+                                <div class="flex items-center justify-between text-rose-400 font-semibold text-xs border-b border-slate-800 pb-2 mb-3">
+                                    <span class="flex items-center gap-1.5"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> SECURITY AUDIT MATRIX</span>
+                                    <span class="text-[10px] bg-rose-500/10 px-2 py-0.5 rounded text-rose-300 uppercase font-mono" id="det-risk-rate">Low risk</span>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-3 text-xs">
+                                    <div>
+                                        <span class="text-slate-400 block">Rug Pull Prob</span>
+                                        <span class="font-mono text-slate-200" id="det-rug">12.5%</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">Honeypot Prob</span>
+                                        <span class="font-mono text-slate-200" id="det-honeypot">5.0%</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">Buy / Sell Tax</span>
+                                        <span class="font-mono text-slate-200" id="det-tax">0.0% / 0.0%</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">Ownership Status</span>
+                                        <span class="font-mono text-slate-200" id="det-owner">Renounced</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">Developer Wallet</span>
+                                        <span class="font-mono text-slate-200" id="det-dev-wallet">5.2%</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">Token Liquidity Risk</span>
+                                        <span class="font-mono text-slate-200" id="det-liq-risk">Low</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Column 3: AI Model Optimization, Active Trackers, & Alerts -->
+            <div class="space-y-6">
+
+                <!-- AI Self-Learning weights card -->
+                <div class="bg-darkcard border border-slate-800 rounded-2xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="p-1.5 bg-blue-500/10 text-blue-400 rounded-lg"><i data-lucide="brain-circuit" class="w-4 h-4"></i></span>
+                            <h3 class="font-bold text-white text-sm">Self-Optimizing Model Weights</h3>
+                        </div>
+                        <span class="text-[10px] text-blue-400 font-mono uppercase bg-blue-500/10 px-2 py-0.5 rounded">Reinforced learning</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 items-center">
+                        <div class="w-28 h-28 mx-auto">
+                            <canvas id="weightsChart"></canvas>
+                        </div>
+                        <div class="space-y-1.5 text-xs">
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500 block"></span> Technical</span>
+                                <span class="font-mono font-bold text-white" id="w-tech">{{ "%.1f"|format(weights.technical * 100) }}%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-pink-500 block"></span> Social</span>
+                                <span class="font-mono font-bold text-white" id="w-social">{{ "%.1f"|format(weights.social * 100) }}%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-yellow-500 block"></span> Whale</span>
+                                <span class="font-mono font-bold text-white" id="w-whale">{{ "%.1f"|format(weights.whale * 100) }}%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-500 block"></span> Momentum</span>
+                                <span class="font-mono font-bold text-white" id="w-momentum">{{ "%.1f"|format(weights.momentum * 100) }}%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 block"></span> Profit Ratio</span>
+                                <span class="font-mono font-bold text-white" id="w-profit">{{ "%.1f"|format(weights.profit * 100) }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Predictions / Simulated trades tracker -->
+                <div class="bg-darkcard border border-slate-800 rounded-2xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg"><i data-lucide="target" class="w-4 h-4"></i></span>
+                            <h3 class="font-bold text-white text-sm">Active predictions tracker</h3>
+                        </div>
+                        <span class="text-[10px] text-indigo-400 font-mono bg-indigo-500/10 px-2 py-0.5 rounded uppercase" id="active-pred-count">{{ active_preds|length }} Active</span>
+                    </div>
+
+                    <div class="max-h-48 overflow-y-auto space-y-2.5 pr-1" id="active-predictions-list">
+                        {% if active_preds %}
+                            {% for p in active_preds %}
+                            {% set net_return = ((p.current_price - p.entry_price) / p.entry_price) * 100.0 %}
+                            <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3 flex justify-between items-center text-xs">
+                                <div>
+                                    <span class="font-bold text-white block">{{ p.name }} ({{ p.ticker }})</span>
+                                    <span class="text-slate-400 text-[10px] block">Entry: ${{ "{:,.4f}".format(p.entry_price) }} &rarr; Curr: ${{ "{:,.4f}".format(p.current_price) }}</span>
+                                </div>
+                                <div class="text-right">
+                                    {% if net_return >= 0 %}
+                                    <span class="text-emerald-400 font-bold font-mono">+{{ "%.2f"|format(net_return) }}%</span>
+                                    {% else %}
+                                    <span class="text-rose-400 font-bold font-mono">{{ "%.2f"|format(net_return) }}%</span>
+                                    {% endif %}
+                                    <span class="block text-[9px] text-slate-500 font-mono">Conf: {{ p.confidence }}%</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-xs text-slate-500 py-6">No active trades tracked. Scan the market to trigger alpha setups.</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Real-time Alpha Alert Feeds -->
+                <div class="bg-darkcard border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col max-h-[420px]">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="p-1.5 bg-rose-500/10 text-rose-400 rounded-lg"><i data-lucide="bell" class="w-4 h-4 animate-pulse"></i></span>
+                            <h3 class="font-bold text-white text-sm">Autonomous Alpha & Security Alerts</h3>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto space-y-3 pr-1" id="alerts-list">
+                        {% if alerts %}
+                            {% for a in alerts %}
+                            <div class="border-l-2 {% if a.severity == 'HIGH' %}border-rose-500 bg-rose-500/5{% else %}border-amber-500 bg-amber-500/5{% endif %} p-3 rounded-r-xl text-xs space-y-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-white flex items-center gap-1">
+                                        {% if a.alert_type == 'WHALE_ACCUMULATION' %}🐳 Whale Inflow{% elif a.alert_type == 'VOLUME_SPIKE' %}📈 Vol Spike{% elif a.alert_type == 'BREAKOUT_START' %}🚀 Breakout Set{% else %}✨ High Conf Opportunity{% endif %}
+                                        ({{ a.ticker }})
+                                    </span>
+                                    <span class="text-[9px] text-slate-500 font-mono">{{ a.timestamp.split(' ')[1] if ' ' in a.timestamp else a.timestamp }}</span>
+                                </div>
+                                <p class="text-slate-300 text-[11px] leading-relaxed">{{ a.message }}</p>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-xs text-slate-500 py-10">Waiting for next scan to trigger high-contrast notifications...</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Javascript Actions and AJAX Updates -->
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Pass weights from jinja into JS
+        let weights = {
+            technical: {{ weights.technical }},
+            social: {{ weights.social }},
+            whale: {{ weights.whale }},
+            momentum: {{ weights.momentum }},
+            profit: {{ weights.profit }}
+        };
+
+        // Render Chart.js
+        let ctx = document.getElementById('weightsChart').getContext('2d');
+        let weightsChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Technical', 'Social', 'Whale', 'Momentum', 'Profit'],
+                datasets: [{
+                    data: [weights.technical, weights.social, weights.whale, weights.momentum, weights.profit],
+                    backgroundColor: [
+                        '#3B82F6', // Blue
+                        '#EC4899', // Pink
+                        '#EAB308', // Yellow
+                        '#A855F7', // Purple
+                        '#10B981'  // Emerald
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+
+        async function triggerScan() {
+            try {
+                const response = await fetch('/api/scan', { method: 'POST' });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // Update table UI
+                    updateOppsTable(data.opps);
+                    // Update stat totals
+                    if (data.opps.length > 0) {
+                        document.getElementById('stat-fng').innerText = data.opps[0].global_metrics.fear_greed_index;
+                    }
+                    if (data.stats) {
+                        document.getElementById('stat-winrate').innerText = data.stats.win_rate + '%';
+                        document.getElementById('stat-trades').innerText = 'From ' + data.stats.total_predictions + ' predictions';
+                        document.getElementById('stat-avgreturn').innerText = data.stats.average_return + '%';
+                        document.getElementById('stat-active').innerText = 'Active setups: ' + data.stats.active;
+                        document.getElementById('active-pred-count').innerText = data.stats.active + ' Active';
+                    }
+                    // Load alert sidebar
+                    refreshAlerts();
+                }
+            } catch (err) {
+                console.error("Scanning Error: ", err);
+            }
+        }
+
+        async function triggerSimulation() {
+            try {
+                const response = await fetch('/api/simulate', { method: 'POST' });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // Alert the user what happened in simulation
+                    alert(`Simulating market ticks: Resolved ${data.resolved_count} predicting trade resolutions, re-adjusted weights, and completed accuracy backtest!`);
+
+                    // Update predictions list
+                    updatePredictionsList(data.active_preds);
+
+                    // Update model weights in UI & charts
+                    weightsChart.data.datasets[0].data = [
+                        data.weights.technical,
+                        data.weights.social,
+                        data.weights.whale,
+                        data.weights.momentum,
+                        data.weights.profit
+                    ];
+                    weightsChart.update();
+
+                    document.getElementById('w-tech').innerText = (data.weights.technical * 100).toFixed(1) + '%';
+                    document.getElementById('w-social').innerText = (data.weights.social * 100).toFixed(1) + '%';
+                    document.getElementById('w-whale').innerText = (data.weights.whale * 100).toFixed(1) + '%';
+                    document.getElementById('w-momentum').innerText = (data.weights.momentum * 100).toFixed(1) + '%';
+                    document.getElementById('w-profit').innerText = (data.weights.profit * 100).toFixed(1) + '%';
+
+                    // Update stats panel
+                    document.getElementById('stat-winrate').innerText = data.stats.win_rate + '%';
+                    document.getElementById('stat-trades').innerText = 'From ' + data.stats.total_predictions + ' predictions';
+                    document.getElementById('stat-avgreturn').innerText = data.stats.average_return + '%';
+                    document.getElementById('stat-active').innerText = 'Active setups: ' + data.stats.active;
+                    document.getElementById('active-pred-count').innerText = data.stats.active + ' Active';
+
+                    refreshAlerts();
+                }
+            } catch (err) {
+                console.error("Simulation Error: ", err);
+            }
+        }
+
+        async function loadCoinDetail(ticker) {
+            try {
+                const response = await fetch(`/api/opportunity/${ticker}`);
+                const data = await response.json();
+                if (data.error) return;
+
+                document.getElementById('detail-card-empty').classList.add('hidden');
+                document.getElementById('detail-card-container').classList.remove('hidden');
+
+                document.getElementById('det-name').innerText = data.name;
+                document.getElementById('det-ticker').innerText = data.ticker;
+                document.getElementById('det-address').innerText = data.address;
+                document.getElementById('det-conf').innerText = data.plan.confidence_pct + '%';
+
+                document.getElementById('det-entry').innerText = '$' + formatNumber(data.plan.suggested_entry);
+                document.getElementById('det-sl').innerText = '$' + formatNumber(data.plan.stop_loss);
+                document.getElementById('det-tp1').innerText = '$' + formatNumber(data.plan.take_profit_1);
+                document.getElementById('det-tp2').innerText = '$' + formatNumber(data.plan.take_profit_2);
+                document.getElementById('det-tp3').innerText = '$' + formatNumber(data.plan.take_profit_3);
+                document.getElementById('det-rr').innerText = '1 : ' + data.plan.risk_reward_ratio;
+                document.getElementById('det-holdtime').innerText = data.plan.expected_holding_time;
+                document.getElementById('det-thesis').innerText = data.plan.reason_for_selection;
+
+                document.getElementById('det-trend').innerText = data.ta.trend_strength;
+                document.getElementById('det-ema').innerText = formatNumber(data.ta.ema_9) + ' / ' + formatNumber(data.ta.ema_50);
+                document.getElementById('det-rsi').innerText = data.ta.rsi.toFixed(1);
+                document.getElementById('det-macd').innerText = data.ta.macd.histogram.toFixed(4);
+                document.getElementById('det-adx').innerText = data.ta.adx.toFixed(1);
+                document.getElementById('det-relvol').innerText = data.ta.relative_volume.toFixed(1) + 'x';
+                document.getElementById('det-breakout').innerText = data.ta.breakout_probability.toFixed(1) + '%';
+
+                document.getElementById('det-rug').innerText = data.risk.rug_pull_probability.toFixed(1) + '%';
+                document.getElementById('det-honeypot').innerText = data.risk.honeypot_probability.toFixed(1) + '%';
+                document.getElementById('det-tax').innerText = data.risk.buy_tax.toFixed(1) + '% / ' + data.risk.sell_tax.toFixed(1) + '%';
+                document.getElementById('det-owner').innerText = data.risk.is_ownership_renounced ? 'Renounced' : 'Not Renounced';
+                document.getElementById('det-dev-wallet').innerText = data.risk.developer_wallet_pct.toFixed(1) + '%';
+                document.getElementById('det-liq-risk').innerText = data.risk.liquidity_risk > 50 ? 'High' : 'Low';
+                document.getElementById('det-risk-rate').innerText = data.risk.overall_risk_score > 50 ? 'High Risk' : 'Low-Med Risk';
+            } catch (err) {
+                console.error("Coin details error: ", err);
+            }
+        }
+
+        async function refreshAlerts() {
+            try {
+                const response = await fetch('/api/alerts');
+                const data = await response.json();
+                const container = document.getElementById('alerts-list');
+                container.innerHTML = '';
+                if (data.length === 0) {
+                    container.innerHTML = `<div class="text-center text-xs text-slate-500 py-10">No alerts logged.</div>`;
+                    return;
+                }
+                data.forEach(a => {
+                    const borderCol = a.severity === 'HIGH' ? 'border-rose-500 bg-rose-500/5' : 'border-amber-500 bg-amber-500/5';
+                    const icon = a.alert_type === 'WHALE_ACCUMULATION' ? '🐳 Whale Inflow' :
+                                 a.alert_type === 'VOLUME_SPIKE' ? '📈 Vol Spike' :
+                                 a.alert_type === 'BREAKOUT_START' ? '🚀 Breakout Set' : '✨ High Conf Opportunity';
+                    const timestamp = a.timestamp.includes(' ') ? a.timestamp.split(' ')[1] : a.timestamp;
+
+                    container.innerHTML += `
+                        <div class="border-l-2 ${borderCol} p-3 rounded-r-xl text-xs space-y-1 transition-all hover:scale-[1.01]">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-white flex items-center gap-1">
+                                    ${icon} (${a.ticker})
+                                </span>
+                                <span class="text-[9px] text-slate-500 font-mono">${timestamp}</span>
+                            </div>
+                            <p class="text-slate-300 text-[11px] leading-relaxed">${a.message}</p>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                console.error("Alerts refresh error: ", err);
+            }
+        }
+
+        function updateOppsTable(opps) {
+            const body = document.getElementById('opps-table-body');
+            body.innerHTML = '';
+            opps.forEach((o, index) => {
+                const rankHtml = index === 0 ?
+                    `<span class="inline-flex items-center gap-1.5 text-yellow-400"><i data-lucide="crown" class="w-4 h-4 fill-yellow-400/20"></i> #1</span>` :
+                    `#${index + 1}`;
+
+                const riskHtml = o.risk.overall_risk_score > 60 ?
+                    `<span class="inline-block px-2.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold uppercase">High Risk (${o.risk.overall_risk_score.toFixed(1)})</span>` :
+                    o.risk.overall_risk_score > 35 ?
+                    `<span class="inline-block px-2.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold uppercase">Medium (${o.risk.overall_risk_score.toFixed(1)})</span>` :
+                    `<span class="inline-block px-2.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold uppercase">Low Risk (${o.risk.overall_risk_score.toFixed(1)})</span>`;
+
+                body.innerHTML += `
+                    <tr onclick="loadCoinDetail('${o.ticker}')" class="hover:bg-slate-800/40 transition-colors cursor-pointer group">
+                        <td class="py-4 px-5 font-mono text-sm font-semibold text-slate-300">${rankHtml}</td>
+                        <td class="py-4 px-4">
+                            <div class="flex items-center gap-2.5">
+                                <div>
+                                    <div class="font-bold text-white group-hover:text-blue-400 transition-colors">${o.name}</div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-slate-400 text-xs font-mono font-semibold">${o.ticker}</span>
+                                        <span class="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded uppercase tracking-wider font-semibold">${o.narrative}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-4 px-4 font-mono font-semibold text-slate-100">$${o.price.toFixed(4)}</td>
+                        <td class="py-4 px-4 font-mono text-slate-400 text-sm">$${o.market_cap.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                        <td class="py-4 px-4 text-center">
+                            <div class="inline-block px-3 py-1 rounded-full font-mono text-sm font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                ${o.scores.overall_opportunity_score.toFixed(1)}/100
+                            </div>
+                        </td>
+                        <td class="py-4 px-4 text-center">${riskHtml}</td>
+                        <td class="py-4 px-5 text-right">
+                            <button class="text-blue-400 group-hover:text-blue-300 bg-blue-500/5 hover:bg-blue-500/15 p-1.5 rounded-lg transition-all">
+                                <i data-lucide="eye" class="w-4.5 h-4.5"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            lucide.createIcons();
+        }
+
+        function updatePredictionsList(preds) {
+            const container = document.getElementById('active-predictions-list');
+            container.innerHTML = '';
+            if (preds.length === 0) {
+                container.innerHTML = `<div class="text-center text-xs text-slate-500 py-6">No active trades tracked.</div>`;
+                return;
+            }
+            preds.forEach(p => {
+                const netReturn = ((p.current_price - p.entry_price) / p.entry_price) * 100.0;
+                const sign = netReturn >= 0 ? '+' : '';
+                const retColor = netReturn >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                container.innerHTML += `
+                    <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3 flex justify-between items-center text-xs">
+                        <div>
+                            <span class="font-bold text-white block">${p.name} (${p.ticker})</span>
+                            <span class="text-slate-400 text-[10px] block">Entry: $${p.entry_price.toFixed(4)} &rarr; Curr: $${p.current_price.toFixed(4)}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="${retColor} font-bold font-mono">${sign}${netReturn.toFixed(2)}%</span>
+                            <span class="block text-[9px] text-slate-500 font-mono">Conf: ${p.confidence}%</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function formatNumber(num) {
+            if (num === undefined || num === null) return '0.00';
+            return num.toFixed(4);
+        }
+
+        // Auto load first coin if available
+        document.addEventListener('DOMContentLoaded', () => {
+            const firstRow = document.querySelector('#opps-table-body tr');
+            if (firstRow) {
+                firstRow.click();
+            }
+        });
+    </script>
+</body>
+</html>
