@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  realtime-connector:
+    build: ./app/services/realtime
+    image: do-it-all/realtime-connector:latest
+    env_file: .env
+    restart: unless-stopped
+    networks:
+      - app_net
+    depends_on: []
+
+networks:
+  app_net:
+    driver: bridge
