@@ -83,6 +83,20 @@ class Database:
                 )
             """)
 
+            # 5. Wallet Trades table (tracks crypto wallet buy/sell transactions)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS wallet_trades (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ticker TEXT NOT NULL,
+                    trade_type TEXT NOT NULL, -- 'BUY', 'SELL'
+                    price REAL NOT NULL,
+                    quantity REAL NOT NULL,
+                    total_usd REAL NOT NULL,
+                    notes TEXT DEFAULT '',
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             # Seed default weights if not present
             cursor.execute("SELECT value FROM settings WHERE key = 'ai_weights'")
             if not cursor.fetchone():
@@ -259,3 +273,59 @@ class Database:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM alerts ORDER BY timestamp DESC LIMIT ?", (limit,))
             return [dict(r) for r in cursor.fetchall()]
+
+    # Wallet Trade Management
+    def record_wallet_trade(self, ticker: str, trade_type: str, price: float, quantity: float, notes: str = "") -> int:
+        ticker = ticker.upper()
+        trade_type = trade_type.upper()
+        total_usd = price * quantity
+        with self.get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO wallet_trades (ticker, trade_type, price, quantity, total_usd, notes)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (ticker, trade_type, price, quantity, total_usd, notes))
+            conn.commit()
+            return cursor.lastrowid or 0
+
+    def get_wallet_trades(self, limit: int = 100) -> List[Dict[str, Any]]:
+        with self.get_conn() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM wallet_trades ORDER BY id DESC LIMIT ?", (limit,))
+            return [dict(r) for r in cursor.fetchall()]
+
+    def get_wallet_portfolio(self) -> Dict[str, Any]:
+        with self.get_conn() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM wallet_trades ORDER BY id ASC")
+            trades = [dict(r) for r in cursor.fetchall()]
+
+        holdings: Dict[str, Dict[str, float]] = {}
+
+        for t in trades: # chronological order
+            ticker = t["ticker"]
+            if ticker not in holdings:
+                holdings[ticker] = {"quantity": 0.0, "total_invested": 0.0, "avg_buy_price": 0.0, "realized_pnl": 0.0}
+
+            h = holdings[ticker]
+            price = t["price"]
+            qty = t["quantity"]
+            total = t["total_usd"]
+
+            if t["trade_type"] == "BUY":
+                h["quantity"] += qty
+                h["total_invested"] += total
+                if h["quantity"] > 0:
+                    h["avg_buy_price"] = h["total_invested"] / h["quantity"]
+            elif t["trade_type"] == "SELL":
+                sell_cost_basis = h["avg_buy_price"] * qty
+                h["realized_pnl"] += (total - sell_cost_basis)
+                h["quantity"] = max(0.0, h["quantity"] - qty)
+                h["total_invested"] = h["quantity"] * h["avg_buy_price"]
+
+        return {
+            "positions": holdings,
+            "total_trades": len(trades)
+        }

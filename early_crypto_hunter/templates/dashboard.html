@@ -137,6 +137,90 @@
             </div>
         </section>
 
+        <!-- Wallet Portfolio & Quick Trade Section -->
+        <section class="bg-darkcard border border-slate-800 rounded-2xl p-5 mb-6 shadow-xl">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl"><i data-lucide="wallet" class="w-5 h-5"></i></span>
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Crypto Wallet & Portfolio Tracker</h2>
+                        <p class="text-xs text-slate-400">Track real-time positions, average buy prices, and trade execution</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-slate-400 font-mono">Total Recorded Trades: <strong class="text-white" id="wallet-total-trades">{{ wallet_portfolio.total_trades }}</strong></span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Portfolio Positions Table -->
+                <div class="lg:col-span-2 overflow-x-auto">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase mb-3 flex items-center gap-1.5"><i data-lucide="pie-chart" class="w-3.5 h-3.5 text-emerald-400"></i> Current Portfolio Holdings</h3>
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-slate-800 bg-slate-900/40">
+                                <th class="py-2.5 px-3">Ticker</th>
+                                <th class="py-2.5 px-3">Holdings</th>
+                                <th class="py-2.5 px-3">Avg Buy Price</th>
+                                <th class="py-2.5 px-3">Invested ($)</th>
+                                <th class="py-2.5 px-3 text-right">Realized PnL ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/60" id="wallet-positions-body">
+                            {% if wallet_portfolio.positions %}
+                                {% for ticker, pos in wallet_portfolio.positions.items() %}
+                                <tr class="hover:bg-slate-800/30">
+                                    <td class="py-2.5 px-3 font-bold text-white font-mono">{{ ticker }}</td>
+                                    <td class="py-2.5 px-3 font-mono text-slate-200">{{ "%.4f"|format(pos.quantity) }}</td>
+                                    <td class="py-2.5 px-3 font-mono text-slate-300">${{ "%.6f"|format(pos.avg_buy_price) }}</td>
+                                    <td class="py-2.5 px-3 font-mono text-slate-300">${{ "%.2f"|format(pos.total_invested) }}</td>
+                                    <td class="py-2.5 px-3 font-mono text-right {% if pos.realized_pnl >= 0 %}text-emerald-400{% else %}text-rose-400{% endif %} font-bold">
+                                        ${{ "%+.2f"|format(pos.realized_pnl) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="py-6 text-center text-slate-500">No wallet positions recorded. Execute a trade below!</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Record Trade Form -->
+                <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-4">
+                    <h3 class="text-xs font-semibold text-slate-300 uppercase mb-3 flex items-center gap-1.5"><i data-lucide="plus-circle" class="w-3.5 h-3.5 text-blue-400"></i> Record Wallet Trade</h3>
+                    <form onsubmit="recordWalletTrade(event)" class="space-y-3 text-xs">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Ticker Symbol</label>
+                            <input type="text" id="wt-ticker" required placeholder="e.g. NEOAI, VIRTUAL" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-blue-500 uppercase font-mono">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-slate-400 mb-1">Trade Type</label>
+                                <select id="wt-type" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-blue-500">
+                                    <option value="BUY">BUY</option>
+                                    <option value="SELL">SELL</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Price ($)</label>
+                                <input type="number" step="any" id="wt-price" required placeholder="0.05" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-blue-500 font-mono">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Quantity</label>
+                            <input type="number" step="any" id="wt-qty" required placeholder="1000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-blue-500 font-mono">
+                        </div>
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold py-2 rounded-lg transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5">
+                            <i data-lucide="check" class="w-4 h-4"></i> Submit Trade
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
         <!-- Main Dashboard Layout -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -740,6 +824,57 @@
                     </div>
                 `;
             });
+        }
+
+        async function recordWalletTrade(e) {
+            e.preventDefault();
+            const ticker = document.getElementById('wt-ticker').value;
+            const trade_type = document.getElementById('wt-type').value;
+            const price = parseFloat(document.getElementById('wt-price').value);
+            const quantity = parseFloat(document.getElementById('wt-qty').value);
+
+            try {
+                const res = await fetch('/api/wallet/trade', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticker, trade_type, price, quantity })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    document.getElementById('wt-ticker').value = '';
+                    document.getElementById('wt-price').value = '';
+                    document.getElementById('wt-qty').value = '';
+                    updateWalletUI(data.portfolio);
+                } else {
+                    alert(data.error || 'Failed to record trade.');
+                }
+            } catch (err) {
+                console.error("Record trade error:", err);
+            }
+        }
+
+        function updateWalletUI(portfolio) {
+            document.getElementById('wallet-total-trades').innerText = portfolio.total_trades;
+            const tbody = document.getElementById('wallet-positions-body');
+            tbody.innerHTML = '';
+            const pos = portfolio.positions;
+            if (Object.keys(pos).length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500">No wallet positions recorded.</td></tr>`;
+                return;
+            }
+            for (const [ticker, p] of Object.entries(pos)) {
+                const pnlClass = p.realized_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                const pnlSign = p.realized_pnl >= 0 ? '+' : '';
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/30">
+                        <td class="py-2.5 px-3 font-bold text-white font-mono">${ticker}</td>
+                        <td class="py-2.5 px-3 font-mono text-slate-200">${p.quantity.toFixed(4)}</td>
+                        <td class="py-2.5 px-3 font-mono text-slate-300">$${p.avg_buy_price.toFixed(6)}</td>
+                        <td class="py-2.5 px-3 font-mono text-slate-300">$${p.total_invested.toFixed(2)}</td>
+                        <td class="py-2.5 px-3 font-mono text-right ${pnlClass} font-bold">$${pnlSign}${p.realized_pnl.toFixed(2)}</td>
+                    </tr>
+                `;
+            }
         }
 
         function formatNumber(num) {
