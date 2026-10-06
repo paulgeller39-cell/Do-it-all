@@ -1,7 +1,6 @@
 import sys
 import click
 import json
-from tabulate import tabulate # Fallback to standard manual formatting if tabulate isn't installed
 from .database import Database
 from .data_engine import DataEngine
 from .technical_analysis import TechnicalAnalysisEngine
@@ -26,7 +25,19 @@ def scan():
     print_header("Scanning Cryptocurrency Market")
     db = Database()
     engine = DataEngine()
-    scorer = AIScorer(weights=db.get_weights())
+
+    narrative_mults = {}
+    with db.get_conn() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM settings WHERE key = 'narrative_multipliers'")
+        row = cursor.fetchone()
+        if row:
+            try:
+                narrative_mults = json.loads(row[0])
+            except Exception:
+                pass
+
+    scorer = AIScorer(weights=db.get_weights(), narrative_multipliers=narrative_mults)
     alert_sys = AlertSystem(db)
 
     print("[*] Fetching live data from public sources & DEX metrics...")
@@ -35,13 +46,9 @@ def scan():
     analyzed_opps = []
     print(f"[*] Analyzing {len(opps)} potential candidates with quantitative indicators...")
     for o in opps:
-        # Run TA
         ta_res = TechnicalAnalysisEngine.analyze(o["historical_prices"], o["historical_volumes"])
-        # Run Risk
         risk_res = RiskAnalysisEngine.analyze(o)
-        # Compute AI scores
         scores = scorer.compute_scores(ta_res, risk_res, o)
-        # Generate plan
         plan = scorer.generate_trading_plan(o["price"], ta_res, risk_res, scores, o)
 
         o["ta"] = ta_res
@@ -49,10 +56,8 @@ def scan():
         o["scores"] = scores
         o["plan"] = plan
 
-        # Save to SQLite
         db.save_opportunity(o)
 
-        # If opportunity is safe & promising, auto-log as a simulated prediction
         if scores["overall_opportunity_score"] > 55.0 and risk_res["overall_risk_score"] < 60.0:
             db.save_prediction({
                 "ticker": o["ticker"],
@@ -62,14 +67,14 @@ def scan():
                 "take_profit_1": plan["take_profit_1"],
                 "take_profit_2": plan["take_profit_2"],
                 "take_profit_3": plan["take_profit_3"],
-                "confidence_pct": plan["confidence_pct"]
+                "confidence_pct": plan["confidence_pct"],
+                "narrative": o.get("narrative", "General"),
+                "primary_signal": scores.get("primary_signal", "Standard Setup")
             })
 
-        # Run real-time alerts scanner
         alert_sys.process_and_alert(o)
         analyzed_opps.append(o)
 
-    # Sort opportunities by overall opportunity score
     analyzed_opps.sort(key=lambda x: x["scores"]["overall_opportunity_score"], reverse=True)
 
     print("\nRANKED TOP OPPORTUNITIES:")
@@ -101,6 +106,7 @@ def status():
     print(f" - Total Predictions Tracked : {stats['total_predictions']}")
     print(f" - Win Rate                 : {stats['win_rate']:.2f}%")
     print(f" - Average Return per Trade : {stats['average_return']:.2f}%")
+    print(f" - Top Performing Narrative  : {stats.get('best_narrative', 'N/A')}")
     print(f" - Active Predictions       : {stats['active']}")
     print(f" - Hit Take Profit 1/2/3    : {stats['hit_tp1']} / {stats['hit_tp2']} / {stats['hit_tp3']}")
     print(f" - Hit Stop Loss            : {stats['hit_sl']}")
@@ -150,6 +156,33 @@ def simulate():
     print(f"\n[+] Updated Performance Stats -> Win Rate: {stats['win_rate']:.1f}% | Total Tracked: {stats['total_predictions']}")
 
 @cli.command()
+def stats():
+    """Detailed performance breakdown by narrative and technical signal."""
+    print_header("Detailed Statistical Performance Breakdown")
+    db = Database()
+    breakdown = db.get_stats_breakdown()
+
+    print("\nACCURACY BY NARRATIVE:")
+    by_nar = breakdown.get("by_narrative", {})
+    if by_nar:
+        print(f"{'Narrative':<15} | {'Total Trades':<12} | {'Win Rate':<10} | {'Avg Return':<10}")
+        print("-" * 55)
+        for nar, data in by_nar.items():
+            print(f"{nar:<15} | {data['total_trades']:<12} | {data['win_rate']:<9.1f}% | {data['avg_return']:<+9.2f}%")
+    else:
+        print(" No completed trades logged yet for narrative breakdown.")
+
+    print("\nACCURACY BY TECHNICAL SIGNAL:")
+    by_sig = breakdown.get("by_signal", {})
+    if by_sig:
+        print(f"{'Signal Type':<22} | {'Total Trades':<12} | {'Win Rate':<10} | {'Avg Return':<10}")
+        print("-" * 62)
+        for sig, data in by_sig.items():
+            print(f"{sig:<22} | {data['total_trades']:<12} | {data['win_rate']:<9.1f}% | {data['avg_return']:<+9.2f}%")
+    else:
+        print(" No completed trades logged yet for signal breakdown.")
+
+@cli.command()
 def alerts():
     """View the latest triggered alerts."""
     print_header("Latest Triggered Alerts")
@@ -160,7 +193,6 @@ def alerts():
         print(f"{'Time':<20} | {'Symbol':<8} | {'Type':<20} | {'Severity':<8} | {'Message'}")
         print("-" * 110)
         for a in latest:
-            # Shorten message
             msg = a["message"]
             if len(msg) > 60:
                 msg = msg[:57] + "..."
