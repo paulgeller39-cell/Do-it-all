@@ -80,12 +80,17 @@ class AIScorer:
         risk_score = risk_results.get("overall_risk_score", 50.0)
 
         # 6. Profit Score (0-100)
-        # High profit score when there is deep liquidity combined with explosive momentum and low risk.
-        # It measures the upside potential relative to the risk.
+        # High profit score when there is explosive momentum, micro-cap valuation, early launch bonus, low risk, and sufficient liquidity.
         liquidity = token_data.get("liquidity", 100000)
-        liq_factor = min((liquidity / 1500000) * 100, 100)
+        mcap = token_data.get("market_cap", 10_000_000)
+        is_new = token_data.get("is_new_launch", False)
 
-        profit_score = (tech_score * 0.3) + (mom_score * 0.3) + (liq_factor * 0.2) + ((100 - risk_score) * 0.2)
+        liq_factor = min((liquidity / 500000) * 100, 100)
+        # Asymmetric upside bonus for lower market caps (< $5M)
+        mcap_factor = max(0.0, 100.0 - (mcap / 50_000.0)) if mcap < 5_000_000 else 20.0
+        new_launch_bonus = 25.0 if is_new else 0.0
+
+        profit_score = (tech_score * 0.25) + (mom_score * 0.25) + (mcap_factor * 0.2) + (liq_factor * 0.15) + ((100 - risk_score) * 0.15) + new_launch_bonus
         profit_score = min(max(profit_score, 0.0), 100.0)
 
         # 7. Overall Opportunity Score (0-100)
@@ -145,8 +150,8 @@ class AIScorer:
         tp_mults = [1.5, 3.0, 5.0]
         # Adjust multiples if it's a high risk / high volatility meme coin vs low volatility layer-2
         narrative = token_data.get("narrative", "")
-        if "Meme" in narrative:
-            tp_mults = [3.0, 6.0, 10.0] # Higher targets
+        if token_data.get("is_new_launch", False) or "Meme" in narrative:
+            tp_mults = [5.0, 15.0, 50.0] # Massive upside potential targets for early micro-cap discoveries
         elif "Layer-2" in narrative or "RWA" in narrative:
             tp_mults = [1.2, 2.5, 4.0] # Conservatively smaller targets
 
@@ -188,6 +193,8 @@ class AIScorer:
             reasons.append("aggressive smart money/whale buying on-chain")
         if scores.get("social_score", 50.0) > 75:
             reasons.append("explosive surge in social engagement across Twitter & Reddit")
+        if token_data.get("is_new_launch", False):
+            reasons.append("brand new DEX launch with high early-stage gain potential")
         if "AI" in narrative:
             reasons.append("powerful AI thematic market tailwinds")
         elif "Meme" in narrative:

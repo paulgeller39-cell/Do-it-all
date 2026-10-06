@@ -33,7 +33,10 @@ class DataEngine:
             {"ticker": "JUP", "name": "Jupiter", "address": "JUPyiwrYJGwtXYviidEqTcb976Uzi8jhU7nvG7B6M", "narrative": "DeFi"},
             {"ticker": "GRIFFAIN", "name": "Griffain AI", "address": "0x8888888888888888888888888888888888888888", "narrative": "AI"},
             {"ticker": "DRIFT", "name": "Drift Protocol", "address": "DriFTuTJr9G6KC7DcbEw6vS5B1vJ486zB7PzG7bX", "narrative": "DeFi"},
-            {"ticker": "CHILLGUY", "name": "Chill Guy", "address": "Df6yF6vT9vS7sYqS3PqE5L8N5M9oP4S7fK7B8T9U", "narrative": "Meme"}
+            {"ticker": "CHILLGUY", "name": "Chill Guy", "address": "Df6yF6vT9vS7sYqS3PqE5L8N5M9oP4S7fK7B8T9U", "narrative": "Meme"},
+            {"ticker": "NEOAI", "name": "Neo AI Agent", "address": "0x1111222233334444555566667777888899990000", "narrative": "AI", "is_new": True, "age_hours": 12},
+            {"ticker": "PUMPX", "name": "PumpX Ultra", "address": "0xa1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e", "narrative": "Meme", "is_new": True, "age_hours": 6},
+            {"ticker": "NEXUS", "name": "Nexus Zero", "address": "0x9876543210fedcba9876543210fedcba98765432", "narrative": "DePIN", "is_new": True, "age_hours": 24}
         ]
 
     def fetch_fear_and_greed_index(self) -> int:
@@ -134,16 +137,22 @@ class DataEngine:
             # Calculate simulated historical volumes
             historical_volumes = [volume_24h * random.uniform(0.5, 1.5) for _ in range(150)]
 
+            is_new = p.get("is_new", False)
+            age_hours = p.get("age_hours", random.randint(48, 720))
+            mcap_multiplier = random.uniform(100_000, 2_000_000) if is_new else random.uniform(10_000_000, 100_000_000)
+
             # Incorporate simulated data sources for compliance with all listed data sources
             item = {
                 "name": name,
                 "ticker": ticker,
                 "address": p["address"],
                 "price": price,
-                "market_cap": price * random.uniform(10_000_000, 100_000_000), # Realistic estimation
+                "market_cap": price * mcap_multiplier,
                 "liquidity": liquidity,
                 "volume_24h": volume_24h,
                 "price_change_24h": price_change_24h,
+                "is_new_launch": is_new,
+                "age_hours": age_hours,
                 "narrative": p["narrative"],
                 "historical_prices": historical_prices,
                 "historical_volumes": historical_volumes,

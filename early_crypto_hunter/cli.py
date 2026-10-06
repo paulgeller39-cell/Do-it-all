@@ -168,5 +168,65 @@ def alerts():
     else:
         print("[*] No alerts in logs. Run 'scan' to trigger automated alerts.")
 
+@cli.group()
+def wallet():
+    """Manage crypto wallet trades and portfolio performance."""
+    pass
+
+@wallet.command(name="trade")
+@click.argument("ticker")
+@click.argument("trade_type", type=click.Choice(["BUY", "SELL", "buy", "sell"], case_sensitive=False))
+@click.argument("price", type=float)
+@click.argument("quantity", type=float)
+@click.option("--notes", "-n", default="", help="Optional notes for this transaction.")
+def wallet_trade(ticker, trade_type, price, quantity, notes):
+    """Record a wallet BUY or SELL transaction."""
+    db = Database()
+    trade_id = db.record_wallet_trade(ticker, trade_type, price, quantity, notes)
+    total_usd = price * quantity
+    print_header("Wallet Trade Recorded")
+    print(f" [+] Trade ID   : #{trade_id}")
+    print(f" [+] Ticker     : {ticker.upper()}")
+    print(f" [+] Type       : {trade_type.upper()}")
+    print(f" [+] Price      : ${price:.6f}")
+    print(f" [+] Quantity   : {quantity:.4f}")
+    print(f" [+] Total Value: ${total_usd:.2f}")
+    if notes:
+        print(f" [+] Notes      : {notes}")
+
+@wallet.command(name="portfolio")
+def wallet_portfolio():
+    """Display current wallet portfolio positions & PnL summary."""
+    print_header("Crypto Wallet Portfolio Summary")
+    db = Database()
+    summary = db.get_wallet_portfolio()
+    positions = summary.get("positions", {})
+
+    if not positions:
+        print("[*] No wallet trades recorded yet. Use 'early-crypto-hunter wallet trade TICKER BUY/SELL PRICE QTY' to record trades.")
+        return
+
+    print(f"{'Ticker':<10} | {'Holdings':<12} | {'Avg Buy Price':<14} | {'Invested ($)':<14} | {'Realized PnL ($)':<16}")
+    print("-" * 75)
+    for ticker, pos in positions.items():
+        print(f"{ticker:<10} | {pos['quantity']:<12.4f} | ${pos['avg_buy_price']:<13.6f} | ${pos['total_invested']:<13.2f} | ${pos['realized_pnl']:<+15.2f}")
+
+@wallet.command(name="history")
+@click.option("--limit", "-l", default=20, help="Number of recent trades to view.")
+def wallet_history(limit):
+    """View recent wallet trade transaction history."""
+    print_header("Wallet Trade History")
+    db = Database()
+    trades = db.get_wallet_trades(limit)
+
+    if not trades:
+        print("[*] No trade history recorded.")
+        return
+
+    print(f"{'Time':<20} | {'Ticker':<8} | {'Type':<6} | {'Price':<12} | {'Quantity':<12} | {'Total USD':<12} | {'Notes'}")
+    print("-" * 90)
+    for t in trades:
+        print(f"{t['timestamp']:<20} | {t['ticker']:<8} | {t['trade_type']:<6} | ${t['price']:<11.6f} | {t['quantity']:<12.4f} | ${t['total_usd']:<11.2f} | {t['notes']}")
+
 if __name__ == "__main__":
     cli()

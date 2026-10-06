@@ -12,6 +12,10 @@ from early_crypto_hunter.dashboard import app
 class TestEarlyCryptoHunter(unittest.TestCase):
     def setUp(self):
         self.db = Database()
+        # Clear wallet_trades table before each test for test isolation
+        with self.db.get_conn() as conn:
+            conn.cursor().execute("DELETE FROM wallet_trades")
+            conn.commit()
         self.engine = DataEngine()
         self.scorer = AIScorer()
 
@@ -96,6 +100,48 @@ class TestEarlyCryptoHunter(unittest.TestCase):
         self.assertEqual(data["status"], "success")
         self.assertIn("opps", data)
         self.assertEqual(len(data["opps"]), 10)
+
+    def test_wallet_trade_tracking(self):
+        # Record BUY trade
+        trade_id1 = self.db.record_wallet_trade("NEOAI", "BUY", price=0.05, quantity=1000.0, notes="Early launch entry")
+        self.assertGreater(trade_id1, 0)
+
+        # Record SELL trade
+        trade_id2 = self.db.record_wallet_trade("NEOAI", "SELL", price=0.10, quantity=500.0, notes="Taking partial 2x profits")
+        self.assertGreater(trade_id2, 0)
+
+        trades = self.db.get_wallet_trades(10)
+        self.assertGreaterEqual(len(trades), 2)
+
+        portfolio = self.db.get_wallet_portfolio()
+        self.assertIn("NEOAI", portfolio["positions"])
+        pos = portfolio["positions"]["NEOAI"]
+        self.assertAlmostEqual(pos["quantity"], 500.0)
+        self.assertAlmostEqual(pos["realized_pnl"], 25.0) # (0.10 - 0.05) * 500
+
+    def test_wallet_api_endpoints(self):
+        client = TestClient(app)
+
+        # Test POST /api/wallet/trade
+        payload = {
+            "ticker": "PUMPX",
+            "trade_type": "BUY",
+            "price": 0.02,
+            "quantity": 5000.0,
+            "notes": "Testing API record"
+        }
+        res = client.post("/api/wallet/trade", json=payload)
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["status"], "success")
+        self.assertIn("portfolio", data)
+
+        # Test GET /api/wallet/summary
+        res_summary = client.get("/api/wallet/summary")
+        self.assertEqual(res_summary.status_code, 200)
+        summary_data = res_summary.json()
+        self.assertIn("portfolio", summary_data)
+        self.assertIn("recent_trades", summary_data)
 
 if __name__ == "__main__":
     unittest.main()

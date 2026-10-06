@@ -38,6 +38,8 @@ async def read_root(request: Request):
     weights = db.get_weights()
     alerts = db.get_latest_alerts(25)
     active_preds = db.get_active_predictions()
+    wallet_portfolio = db.get_wallet_portfolio()
+    wallet_trades = db.get_wallet_trades(20)
 
     # We will pass weights as JSON to template for Chart.js
     return templates.TemplateResponse(
@@ -48,7 +50,9 @@ async def read_root(request: Request):
             "stats": stats,
             "weights": weights,
             "alerts": alerts,
-            "active_preds": active_preds
+            "active_preds": active_preds,
+            "wallet_portfolio": wallet_portfolio,
+            "wallet_trades": wallet_trades
         }
     )
 
@@ -104,6 +108,37 @@ async def api_get_alerts():
     db = Database()
     alerts = db.get_latest_alerts(30)
     return JSONResponse(alerts)
+
+@app.get("/api/wallet/summary")
+async def api_wallet_summary():
+    db = Database()
+    portfolio = db.get_wallet_portfolio()
+    trades = db.get_wallet_trades(50)
+    return JSONResponse({
+        "portfolio": portfolio,
+        "recent_trades": trades
+    })
+
+@app.post("/api/wallet/trade")
+async def api_record_trade(request: Request):
+    data = await request.json()
+    ticker = data.get("ticker", "").strip()
+    trade_type = data.get("trade_type", "BUY").strip().upper()
+    price = float(data.get("price", 0.0))
+    quantity = float(data.get("quantity", 0.0))
+    notes = data.get("notes", "")
+
+    if not ticker or price <= 0 or quantity <= 0:
+        return JSONResponse({"error": "Invalid ticker, price, or quantity"}, status_code=400)
+
+    db = Database()
+    trade_id = db.record_wallet_trade(ticker, trade_type, price, quantity, notes)
+    portfolio = db.get_wallet_portfolio()
+    return JSONResponse({
+        "status": "success",
+        "trade_id": trade_id,
+        "portfolio": portfolio
+    })
 
 
 def trigger_full_scan(db: Database):
