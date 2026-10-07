@@ -1,17 +1,18 @@
 import sqlite3
 import json
 import os
+import datetime
 from typing import Dict, Any, List, Optional
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "crypto_hunter.db")
 
 class Database:
     """
-    Handles persistence of opportunities, predictions, alerts, and
-    optimized AI scoring weights using a lightweight SQLite database.
+    Handles persistence of opportunities, predictions, alerts,
+    stats history snapshots, and optimized AI scoring weights using SQLite.
     """
-    def __init__(self):
-        self.db_path = DB_PATH
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = db_path or DB_PATH
         self.init_db()
 
     def get_conn(self):
@@ -57,10 +58,23 @@ class Database:
                     confidence REAL,
                     status TEXT DEFAULT 'ACTIVE', -- 'ACTIVE', 'HIT_TP1', 'HIT_TP2', 'HIT_TP3', 'HIT_SL', 'EXPIRED'
                     net_return_pct REAL DEFAULT 0.0,
+                    narrative TEXT DEFAULT '',
+                    primary_signal TEXT DEFAULT '',
                     predicted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     resolved_at DATETIME
                 )
             """)
+
+            # Schema migration check for columns in predictions
+            try:
+                cursor.execute("ALTER TABLE predictions ADD COLUMN narrative TEXT DEFAULT ''")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE predictions ADD COLUMN primary_signal TEXT DEFAULT ''")
+            except sqlite3.OperationalError:
+                pass
 
             # 3. Alerts log
             cursor.execute("""
@@ -80,6 +94,21 @@ class Database:
                 CREATE TABLE IF NOT EXISTS settings (
                     key TEXT PRIMARY KEY,
                     value TEXT NOT NULL
+                )
+            """)
+
+            # 5. Stats History (performance snapshots over time)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS stats_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    win_rate REAL NOT NULL,
+                    total_predictions INTEGER NOT NULL,
+                    average_return REAL NOT NULL,
+                    active_count INTEGER NOT NULL,
+                    hit_tp_count INTEGER NOT NULL,
+                    hit_sl_count INTEGER NOT NULL,
+                    best_narrative TEXT DEFAULT 'N/A',
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)
 
@@ -186,8 +215,8 @@ class Database:
 
             cursor.execute("""
                 INSERT INTO predictions
-                (ticker, name, entry_price, current_price, stop_loss, take_profit_1, take_profit_2, take_profit_3, confidence, status, net_return_pct)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (ticker, name, entry_price, current_price, stop_loss, take_profit_1, take_profit_2, take_profit_3, confidence, status, net_return_pct, narrative, primary_signal)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 pred["ticker"],
                 pred["name"],
@@ -197,9 +226,11 @@ class Database:
                 pred["take_profit_1"],
                 pred["take_profit_2"],
                 pred["take_profit_3"],
-                pred["confidence_pct"],
+                pred.get("confidence_pct", pred.get("confidence", 50.0)),
                 "ACTIVE",
-                0.0
+                0.0,
+                pred.get("narrative", ""),
+                pred.get("primary_signal", pred.get("signal", ""))
             ))
             conn.commit()
             return cursor.lastrowid or 0
@@ -212,7 +243,6 @@ class Database:
             return [dict(r) for r in cursor.fetchall()]
 
     def update_prediction_price(self, pred_id: int, new_price: float, status: str, net_return: float):
-        import datetime
         with self.get_conn() as conn:
             cursor = conn.cursor()
             if status != "ACTIVE":
@@ -236,6 +266,88 @@ class Database:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM predictions ORDER BY predicted_at DESC")
             return [dict(r) for r in cursor.fetchall()]
+
+    # Stats History Persistence
+    def save_stats_snapshot(self, stats: Dict[str, Any]):
+        with self.get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO stats_history
+                (win_rate, total_predictions, average_return, active_count, hit_tp_count, hit_sl_count, best_narrative)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                stats.get("win_rate", 0.0),
+                stats.get("total_predictions", 0),
+                stats.get("average_return", 0.0),
+                stats.get("active", 0),
+                stats.get("hit_tp1", 0) + stats.get("hit_tp2", 0) + stats.get("hit_tp3", 0),
+                stats.get("hit_sl", 0),
+                stats.get("best_narrative", "N/A")
+            ))
+            conn.commit()
+
+    def get_stats_history(self, limit: int = 50) -> List[Dict[str, Any]]:
+        with self.get_conn() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM stats_history ORDER BY timestamp ASC LIMIT ?", (limit,))
+            return [dict(r) for r in cursor.fetchall()]
+
+    def get_stats_breakdown(self) -> Dict[str, Any]:
+        """
+        Returns performance breakdown aggregated by narrative and by primary signal.
+        """
+        all_preds = self.get_all_predictions()
+        completed = [p for p in all_preds if p["status"] != "ACTIVE"]
+
+        narrative_stats: Dict[str, Dict[str, Any]] = {}
+        signal_stats: Dict[str, Dict[str, Any]] = {}
+
+        for p in completed:
+            nar = p.get("narrative") or "General"
+            sig = p.get("primary_signal") or "Standard Setup"
+            is_win = p["status"] in ("HIT_TP1", "HIT_TP2", "HIT_TP3")
+            ret = p.get("net_return_pct", 0.0)
+
+            # Narrative grouping
+            if nar not in narrative_stats:
+                narrative_stats[nar] = {"total": 0, "wins": 0, "total_return": 0.0}
+            narrative_stats[nar]["total"] += 1
+            if is_win:
+                narrative_stats[nar]["wins"] += 1
+            narrative_stats[nar]["total_return"] += ret
+
+            # Signal grouping
+            if sig not in signal_stats:
+                signal_stats[sig] = {"total": 0, "wins": 0, "total_return": 0.0}
+            signal_stats[sig]["total"] += 1
+            if is_win:
+                signal_stats[sig]["wins"] += 1
+            signal_stats[sig]["total_return"] += ret
+
+        # Format output
+        by_narrative = {}
+        for nar, data in narrative_stats.items():
+            tot = data["total"]
+            by_narrative[nar] = {
+                "total_trades": tot,
+                "win_rate": round((data["wins"] / tot) * 100.0, 1) if tot > 0 else 0.0,
+                "avg_return": round(data["total_return"] / tot, 2) if tot > 0 else 0.0
+            }
+
+        by_signal = {}
+        for sig, data in signal_stats.items():
+            tot = data["total"]
+            by_signal[sig] = {
+                "total_trades": tot,
+                "win_rate": round((data["wins"] / tot) * 100.0, 1) if tot > 0 else 0.0,
+                "avg_return": round(data["total_return"] / tot, 2) if tot > 0 else 0.0
+            }
+
+        return {
+            "by_narrative": by_narrative,
+            "by_signal": by_signal
+        }
 
     # Alerts Persistence
     def save_alert(self, alert: Dict[str, Any]):

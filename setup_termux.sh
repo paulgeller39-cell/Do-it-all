@@ -26,10 +26,10 @@ echo "[*] Upgrading pip..."
 pip install --upgrade pip
 
 echo "[*] Installing Early Crypto Hunter dependencies..."
-pip install fastapi uvicorn jinja2 httpx pytest
+pip install -r requirements.txt
 
 echo "[*] Running verification tests..."
-PYTHONPATH=. pytest
+PYTHONPATH=. python -m pytest
 
 echo ""
 echo "===================================================="

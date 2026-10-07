@@ -1,4 +1,5 @@
 import os
+import json
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -15,11 +16,9 @@ from .learning_engine import LearningEngine
 
 app = FastAPI(title="Early Crypto Hunter Dashboard", description="Elite Crypto Alpha Discovery Terminal")
 
-# Setup template path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# Ensure static assets exist if we mount
 os.makedirs(os.path.join(BASE_DIR, "static"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
@@ -28,27 +27,28 @@ async def read_root(request: Request):
     db = Database()
     le = LearningEngine(db)
 
-    # Get latest data
     opps = db.get_latest_opportunities()
     if not opps:
-        # Auto scan on first page load if DB empty
         opps = trigger_full_scan(db)
 
     stats = le.calculate_performance_stats()
     weights = db.get_weights()
     alerts = db.get_latest_alerts(25)
     active_preds = db.get_active_predictions()
+    stats_history = db.get_stats_history(30)
+    all_preds = db.get_all_predictions()
 
-    # We will pass weights as JSON to template for Chart.js
     return templates.TemplateResponse(
         request,
         "dashboard.html",
         {
-            "opps": opps[:10], # Top 10 ranked
+            "opps": opps[:10],
             "stats": stats,
             "weights": weights,
             "alerts": alerts,
-            "active_preds": active_preds
+            "active_preds": active_preds,
+            "stats_history": stats_history,
+            "all_preds": all_preds
         }
     )
 
@@ -71,7 +71,6 @@ async def api_simulate():
     le = LearningEngine(db)
     resolved = le.update_predictions_simulation()
 
-    # Run optimize if resolved
     if resolved:
         le.optimize_ai_weights()
 
@@ -79,6 +78,7 @@ async def api_simulate():
     weights = db.get_weights()
     active_preds = db.get_active_predictions()
     alerts = db.get_latest_alerts(25)
+    stats_history = db.get_stats_history(30)
 
     return JSONResponse({
         "status": "success",
@@ -87,7 +87,8 @@ async def api_simulate():
         "stats": stats,
         "weights": weights,
         "active_preds": active_preds,
-        "alerts": alerts
+        "alerts": alerts,
+        "stats_history": stats_history
     })
 
 @app.get("/api/opportunity/{ticker}")
@@ -105,14 +106,55 @@ async def api_get_alerts():
     alerts = db.get_latest_alerts(30)
     return JSONResponse(alerts)
 
+@app.get("/api/stats/history")
+async def api_stats_history():
+    db = Database()
+    history = db.get_stats_history(50)
+    return JSONResponse(history)
+
+@app.get("/api/stats/breakdown")
+async def api_stats_breakdown():
+    db = Database()
+    breakdown = db.get_stats_breakdown()
+    return JSONResponse(breakdown)
+
+@app.get("/api/predictions/all")
+async def api_all_predictions():
+    db = Database()
+    preds = db.get_all_predictions()
+    return JSONResponse(preds)
+
 
 def trigger_full_scan(db: Database):
     engine = DataEngine()
-    scorer = AIScorer(weights=db.get_weights())
+
+    # Load narrative multipliers from settings if available
+    narrative_mults = {}
+    with db.get_conn() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM settings WHERE key = 'narrative_multipliers'")
+        row = cursor.fetchone()
+        if row:
+            try:
+                narrative_mults = json.loads(row[0])
+            except Exception:
+                pass
+
+    scorer = AIScorer(weights=db.get_weights(), narrative_multipliers=narrative_mults)
     alert_sys = AlertSystem(db)
 
     opps = engine.get_market_opportunities()
     analyzed = []
+
+    # Map current prices for active predictions if token address or symbol matches
+    active_preds = db.get_active_predictions()
+    price_map = {o["ticker"]: o["price"] for o in opps}
+
+    for p in active_preds:
+        if p["ticker"] in price_map:
+            new_price = price_map[p["ticker"]]
+            net_return = ((new_price - p["entry_price"]) / p["entry_price"]) * 100.0
+            db.update_prediction_price(p["id"], new_price, "ACTIVE", net_return)
 
     for o in opps:
         ta_res = TechnicalAnalysisEngine.analyze(o["historical_prices"], o["historical_volumes"])
@@ -127,7 +169,6 @@ def trigger_full_scan(db: Database):
 
         db.save_opportunity(o)
 
-        # Save predictions for highly scoring and safe candidates
         if scores["overall_opportunity_score"] > 55.0 and risk_res["overall_risk_score"] < 60.0:
             db.save_prediction({
                 "ticker": o["ticker"],
@@ -137,7 +178,9 @@ def trigger_full_scan(db: Database):
                 "take_profit_1": plan["take_profit_1"],
                 "take_profit_2": plan["take_profit_2"],
                 "take_profit_3": plan["take_profit_3"],
-                "confidence_pct": plan["confidence_pct"]
+                "confidence_pct": plan["confidence_pct"],
+                "narrative": o.get("narrative", "General"),
+                "primary_signal": scores.get("primary_signal", "Standard Setup")
             })
 
         alert_sys.process_and_alert(o)

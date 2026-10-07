@@ -45,7 +45,7 @@
         }
     </style>
 </head>
-<body class="text-slate-100 min-h-screen">
+<body class="text-slate-100 min-h-screen pb-12">
     <div class="container mx-auto px-4 py-6">
 
         <!-- Header / Banner -->
@@ -56,7 +56,7 @@
                 </div>
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                        EARLY CRYPTO HUNTER <span class="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-full font-mono uppercase tracking-widest">ALPHAv1.5</span>
+                        EARLY CRYPTO HUNTER <span class="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-full font-mono uppercase tracking-widest">ALPHAv2.0</span>
                     </h1>
                     <p class="text-slate-400 text-sm">24/7 autonomous scanning, risk mitigation, and self-optimizing prediction engine</p>
                 </div>
@@ -84,7 +84,7 @@
                     <span class="text-xl font-bold text-white font-mono" id="stat-fng">
                         {% if opps %}{{ opps[0].global_metrics.fear_greed_index }}{% else %}55{% endif %}
                     </span>
-                    <span class="text-[10px] text-amber-500 block">Neutral-Greed</span>
+                    <span class="text-[10px] text-amber-500 block">Market Index</span>
                 </div>
             </div>
 
@@ -94,9 +94,9 @@
                     <i data-lucide="activity" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <span class="block text-slate-400 text-xs font-semibold uppercase tracking-wider">BTC Dominance</span>
-                    <span class="text-xl font-bold text-white font-mono">58.2%</span>
-                    <span class="text-[10px] text-blue-400 block">High Alt Season Bar</span>
+                    <span class="block text-slate-400 text-xs font-semibold uppercase tracking-wider">Top Narrative</span>
+                    <span class="text-xl font-bold text-white font-mono" id="stat-best-nar">{{ stats.best_narrative if stats.best_narrative else 'AI' }}</span>
+                    <span class="text-[10px] text-blue-400 block">Highest Win Rate</span>
                 </div>
             </div>
 
@@ -124,7 +124,7 @@
                 </div>
             </div>
 
-            <!-- Active Predictions Count Card -->
+            <!-- Total Scanned Card -->
             <div class="bg-darkcard border border-slate-800 p-4 rounded-2xl flex items-center gap-4 col-span-2 md:col-span-1">
                 <div class="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl">
                     <i data-lucide="compass" class="w-6 h-6"></i>
@@ -132,7 +132,7 @@
                 <div>
                     <span class="block text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Scanned</span>
                     <span class="text-xl font-bold text-white font-mono">12 Coins</span>
-                    <span class="text-[10px] text-cyan-400 block">Full dex networks covered</span>
+                    <span class="text-[10px] text-cyan-400 block">Real-time DEX feed</span>
                 </div>
             </div>
         </section>
@@ -140,7 +140,7 @@
         <!-- Main Dashboard Layout -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            <!-- Column 1 & 2: Main Top 10 Ranked Coins & Details -->
+            <!-- Column 1 & 2: Main Top 10 Ranked Coins & Details & Performance Trends -->
             <div class="lg:col-span-2 space-y-6">
 
                 <!-- TOP 10 Ranks table card -->
@@ -223,7 +223,6 @@
                 </div>
 
                 <div id="detail-card-container" class="hidden bg-darkcard border border-slate-800 rounded-2xl shadow-xl overflow-hidden transition-all">
-                    <!-- Title Banner -->
                     <div class="p-5 border-b border-slate-800 bg-slate-900/40 flex justify-between items-center">
                         <div class="flex items-center gap-3">
                             <span class="p-2 bg-blue-600/10 text-blue-400 rounded-xl"><i data-lucide="radar" class="w-5 h-5"></i></span>
@@ -292,7 +291,6 @@
 
                         <!-- Right Panel: Quantitative Technical & Risk Metrics -->
                         <div class="space-y-4">
-                            <!-- Technical Indicators Grid -->
                             <div class="bg-slate-900/20 border border-slate-800/80 rounded-xl p-4">
                                 <div class="flex items-center justify-between text-blue-400 font-semibold text-xs border-b border-slate-800 pb-2 mb-3">
                                     <span class="flex items-center gap-1.5"><i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i> TECHNICAL INDICATORS</span>
@@ -327,7 +325,6 @@
                                 </div>
                             </div>
 
-                            <!-- Smart Risk Mitigation Metrics -->
                             <div class="bg-slate-900/20 border border-slate-800/80 rounded-xl p-4">
                                 <div class="flex items-center justify-between text-rose-400 font-semibold text-xs border-b border-slate-800 pb-2 mb-3">
                                     <span class="flex items-center gap-1.5"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> SECURITY AUDIT MATRIX</span>
@@ -364,6 +361,73 @@
 
                         </div>
 
+                    </div>
+                </div>
+
+                <!-- HISTORICAL PERFORMANCE & ACCURACY CHART -->
+                <div class="bg-darkcard border border-slate-800 rounded-2xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg"><i data-lucide="line-chart" class="w-4 h-4"></i></span>
+                            <h3 class="font-bold text-white text-sm">Historical Model Win Rate & Return Progression</h3>
+                        </div>
+                        <span class="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded uppercase">Stats History</span>
+                    </div>
+
+                    <div class="h-56 w-full">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- RESOLVED TRADES HISTORY LOG -->
+                <div class="bg-darkcard border border-slate-800 rounded-2xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="p-1.5 bg-purple-500/10 text-purple-400 rounded-lg"><i data-lucide="history" class="w-4 h-4"></i></span>
+                            <h3 class="font-bold text-white text-sm">Completed / Resolved Trades History Log</h3>
+                        </div>
+                        <span class="text-[10px] text-purple-400 font-mono bg-purple-500/10 px-2 py-0.5 rounded uppercase">Trade Outcomes</span>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-60 overflow-y-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="text-slate-400 border-b border-slate-800">
+                                    <th class="py-2 px-3">Ticker</th>
+                                    <th class="py-2 px-3">Entry Price</th>
+                                    <th class="py-2 px-3">Exit Price</th>
+                                    <th class="py-2 px-3">Narrative</th>
+                                    <th class="py-2 px-3">Outcome</th>
+                                    <th class="py-2 px-3 text-right">Net Return</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resolved-trades-body" class="divide-y divide-slate-800/50">
+                                {% if all_preds %}
+                                    {% for p in all_preds %}
+                                    {% if p.status != 'ACTIVE' %}
+                                    <tr>
+                                        <td class="py-2.5 px-3 font-bold text-white">{{ p.ticker }}</td>
+                                        <td class="py-2.5 px-3 font-mono">${{ "{:,.4f}".format(p.entry_price) }}</td>
+                                        <td class="py-2.5 px-3 font-mono">${{ "{:,.4f}".format(p.current_price) }}</td>
+                                        <td class="py-2.5 px-3 text-slate-400">{{ p.narrative if p.narrative else 'General' }}</td>
+                                        <td class="py-2.5 px-3 font-semibold">
+                                            {% if 'TP' in p.status %}
+                                            <span class="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">{{ p.status }}</span>
+                                            {% else %}
+                                            <span class="text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">{{ p.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-2.5 px-3 text-right font-mono font-bold {% if p.net_return_pct >= 0 %}text-emerald-400{% else %}text-rose-400{% endif %}">
+                                            {{ "%+.2f"|format(p.net_return_pct) }}%
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <tr><td colspan="6" class="text-center py-6 text-slate-500">No resolved trades recorded yet. Run simulation to resolve setups.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -483,10 +547,8 @@
 
     <!-- Javascript Actions and AJAX Updates -->
     <script>
-        // Initialize Lucide icons
         lucide.createIcons();
 
-        // Pass weights from jinja into JS
         let weights = {
             technical: {{ weights.technical }},
             social: {{ weights.social }},
@@ -495,33 +557,66 @@
             profit: {{ weights.profit }}
         };
 
-        // Render Chart.js
-        let ctx = document.getElementById('weightsChart').getContext('2d');
-        let weightsChart = new Chart(ctx, {
+        let ctxWeights = document.getElementById('weightsChart').getContext('2d');
+        let weightsChart = new Chart(ctxWeights, {
             type: 'doughnut',
             data: {
                 labels: ['Technical', 'Social', 'Whale', 'Momentum', 'Profit'],
                 datasets: [{
                     data: [weights.technical, weights.social, weights.whale, weights.momentum, weights.profit],
-                    backgroundColor: [
-                        '#3B82F6', // Blue
-                        '#EC4899', // Pink
-                        '#EAB308', // Yellow
-                        '#A855F7', // Purple
-                        '#10B981'  // Emerald
-                    ],
+                    backgroundColor: ['#3B82F6', '#EC4899', '#EAB308', '#A855F7', '#10B981'],
                     borderWidth: 0
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
+                plugins: { legend: { display: false } },
                 cutout: '70%'
+            }
+        });
+
+        // Initialize Stats History Line Chart
+        let initialHistory = [
+            {% for h in stats_history %}
+            { time: '{{ h.timestamp.split(" ")[1] if " " in h.timestamp else h.timestamp }}', winRate: {{ h.win_rate }}, avgReturn: {{ h.average_return }} },
+            {% endfor %}
+        ];
+
+        let ctxHistory = document.getElementById('historyChart').getContext('2d');
+        let historyChart = new Chart(ctxHistory, {
+            type: 'line',
+            data: {
+                labels: initialHistory.map(h => h.time),
+                datasets: [
+                    {
+                        label: 'Win Rate (%)',
+                        data: initialHistory.map(h => h.winRate),
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Avg Return (%)',
+                        data: initialHistory.map(h => h.avgReturn),
+                        borderColor: '#A855F7',
+                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { grid: { color: '#1E293B' }, ticks: { color: '#94A3B8', font: { size: 10 } } },
+                    y: { grid: { color: '#1E293B' }, ticks: { color: '#94A3B8', font: { size: 10 } } }
+                },
+                plugins: {
+                    legend: { labels: { color: '#CBD5E1', font: { size: 11 } } }
+                }
             }
         });
 
@@ -530,20 +625,13 @@
                 const response = await fetch('/api/scan', { method: 'POST' });
                 const data = await response.json();
                 if (data.status === 'success') {
-                    // Update table UI
                     updateOppsTable(data.opps);
-                    // Update stat totals
                     if (data.opps.length > 0) {
                         document.getElementById('stat-fng').innerText = data.opps[0].global_metrics.fear_greed_index;
                     }
                     if (data.stats) {
-                        document.getElementById('stat-winrate').innerText = data.stats.win_rate + '%';
-                        document.getElementById('stat-trades').innerText = 'From ' + data.stats.total_predictions + ' predictions';
-                        document.getElementById('stat-avgreturn').innerText = data.stats.average_return + '%';
-                        document.getElementById('stat-active').innerText = 'Active setups: ' + data.stats.active;
-                        document.getElementById('active-pred-count').innerText = data.stats.active + ' Active';
+                        updateStatsCards(data.stats);
                     }
-                    // Load alert sidebar
                     refreshAlerts();
                 }
             } catch (err) {
@@ -556,13 +644,10 @@
                 const response = await fetch('/api/simulate', { method: 'POST' });
                 const data = await response.json();
                 if (data.status === 'success') {
-                    // Alert the user what happened in simulation
-                    alert(`Simulating market ticks: Resolved ${data.resolved_count} predicting trade resolutions, re-adjusted weights, and completed accuracy backtest!`);
+                    alert(`Market progression step complete: Resolved ${data.resolved_count} predictions, updated learning weights and accuracy stats.`);
 
-                    // Update predictions list
                     updatePredictionsList(data.active_preds);
 
-                    // Update model weights in UI & charts
                     weightsChart.data.datasets[0].data = [
                         data.weights.technical,
                         data.weights.social,
@@ -578,17 +663,66 @@
                     document.getElementById('w-momentum').innerText = (data.weights.momentum * 100).toFixed(1) + '%';
                     document.getElementById('w-profit').innerText = (data.weights.profit * 100).toFixed(1) + '%';
 
-                    // Update stats panel
-                    document.getElementById('stat-winrate').innerText = data.stats.win_rate + '%';
-                    document.getElementById('stat-trades').innerText = 'From ' + data.stats.total_predictions + ' predictions';
-                    document.getElementById('stat-avgreturn').innerText = data.stats.average_return + '%';
-                    document.getElementById('stat-active').innerText = 'Active setups: ' + data.stats.active;
-                    document.getElementById('active-pred-count').innerText = data.stats.active + ' Active';
+                    if (data.stats) {
+                        updateStatsCards(data.stats);
+                    }
 
+                    if (data.stats_history) {
+                        historyChart.data.labels = data.stats_history.map(h => h.timestamp.includes(' ') ? h.timestamp.split(' ')[1] : h.timestamp);
+                        historyChart.data.datasets[0].data = data.stats_history.map(h => h.win_rate);
+                        historyChart.data.datasets[1].data = data.stats_history.map(h => h.average_return);
+                        historyChart.update();
+                    }
+
+                    refreshResolvedTrades();
                     refreshAlerts();
                 }
             } catch (err) {
                 console.error("Simulation Error: ", err);
+            }
+        }
+
+        function updateStatsCards(stats) {
+            document.getElementById('stat-winrate').innerText = stats.win_rate + '%';
+            document.getElementById('stat-trades').innerText = 'From ' + stats.total_predictions + ' predictions';
+            document.getElementById('stat-avgreturn').innerText = stats.average_return + '%';
+            document.getElementById('stat-active').innerText = 'Active setups: ' + stats.active;
+            document.getElementById('stat-best-nar').innerText = stats.best_narrative || 'AI';
+            document.getElementById('active-pred-count').innerText = stats.active + ' Active';
+        }
+
+        async function refreshResolvedTrades() {
+            try {
+                const response = await fetch('/api/predictions/all');
+                const preds = await response.json();
+                const body = document.getElementById('resolved-trades-body');
+                body.innerHTML = '';
+                const completed = preds.filter(p => p.status !== 'ACTIVE');
+                if (completed.length === 0) {
+                    body.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">No resolved trades recorded yet.</td></tr>`;
+                    return;
+                }
+                completed.forEach(p => {
+                    const statusClass = p.status.includes('TP') ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20';
+                    const retClass = p.net_return_pct >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                    const sign = p.net_return_pct >= 0 ? '+' : '';
+                    body.innerHTML += `
+                        <tr>
+                            <td class="py-2.5 px-3 font-bold text-white">${p.ticker}</td>
+                            <td class="py-2.5 px-3 font-mono">$${p.entry_price.toFixed(4)}</td>
+                            <td class="py-2.5 px-3 font-mono">$${p.current_price.toFixed(4)}</td>
+                            <td class="py-2.5 px-3 text-slate-400">${p.narrative || 'General'}</td>
+                            <td class="py-2.5 px-3 font-semibold">
+                                <span class="${statusClass} px-2 py-0.5 rounded border">${p.status}</span>
+                            </td>
+                            <td class="py-2.5 px-3 text-right font-mono font-bold ${retClass}">
+                                ${sign}${p.net_return_pct.toFixed(2)}%
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error("Error refreshing resolved trades: ", err);
             }
         }
 
@@ -747,7 +881,6 @@
             return num.toFixed(4);
         }
 
-        // Auto load first coin if available
         document.addEventListener('DOMContentLoaded', () => {
             const firstRow = document.querySelector('#opps-table-body tr');
             if (firstRow) {

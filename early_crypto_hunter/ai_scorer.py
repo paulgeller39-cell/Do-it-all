@@ -15,10 +15,10 @@ class AIScorer:
     Generates tailored Trading Plans featuring suggested entry, stop loss,
     three take-profit levels, risk/reward ratios, and holding times.
 
-    Supports dynamic feedback tuning (learning weights) from the database.
+    Supports dynamic feedback tuning (learning weights & narrative multipliers) from the database.
     """
 
-    def __init__(self, weights: Dict[str, float] = None):
+    def __init__(self, weights: Dict[str, float] = None, narrative_multipliers: Dict[str, float] = None):
         # Default starting weights which add up to 100% (or 1.0)
         self.weights = weights or {
             "technical": 0.25,
@@ -27,47 +27,43 @@ class AIScorer:
             "momentum": 0.15,
             "profit": 0.20
         }
+        self.narrative_multipliers = narrative_multipliers or {}
 
     def compute_scores(self, ta_results: Dict[str, Any], risk_results: Dict[str, Any], token_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Calculates all sub-scores and the final aggregated Overall Opportunity Score.
         """
         # 1. Technical Score (0-100)
-        # Driven by breakout probability, RSI momentum, alignment of price with EMA, etc.
         breakout_prob = ta_results.get("breakout_probability", 50.0)
         rsi = ta_results.get("rsi", 50.0)
-        rsi_factor = 100.0 - abs(rsi - 60.0) * 2.0 # penalize extreme overbought/oversold, reward optimal bullish strength
+        rsi_factor = 100.0 - abs(rsi - 60.0) * 2.0
         rsi_factor = min(max(rsi_factor, 0.0), 100.0)
 
         rel_vol = ta_results.get("relative_volume", 1.0)
-        vol_factor = min(rel_vol * 30.0, 100.0) # higher relative volume is extremely bullish
+        vol_factor = min(rel_vol * 30.0, 100.0)
 
         tech_score = (breakout_prob * 0.4) + (rsi_factor * 0.3) + (vol_factor * 0.3)
         tech_score = min(max(tech_score, 0.0), 100.0)
 
         # 2. Social Score (0-100)
-        # Driven by Twitter mentions, Reddit sentiment, Github activity
         social_data = token_data.get("social_metrics", {})
         twitter_mentions = social_data.get("twitter_mentions", 1000)
         reddit_sent = social_data.get("reddit_sentiment", 0.5)
         github_commits = social_data.get("github_commits_24h", 5)
 
-        # Twitter normalized score (say, log scale or cap at 15000 mentions)
         tw_score = min((twitter_mentions / 15000) * 100, 100)
-        reddit_score = (reddit_sent + 1) * 50 # mapping [-1, 1] to [0, 100]
+        reddit_score = (reddit_sent + 1) * 50
         github_score = min((github_commits / 45) * 100, 100)
 
         social_score = (tw_score * 0.5) + (reddit_score * 0.3) + (github_score * 0.2)
         social_score = min(max(social_score, 0.0), 100.0)
 
         # 3. Whale Score (0-100)
-        # Based on simulated/detected smart money on-chain movements
         onchain = token_data.get("onchain_metrics", {})
         whale_inflow = onchain.get("whale_inflow_usd", 100000)
         whale_score = min((whale_inflow / 800000) * 100, 100)
 
         # 4. Momentum Score (0-100)
-        # Based on 24h price changes, Fear & Greed index, chain activity
         price_change_24h = token_data.get("price_change_24h", 0.0)
         mom_price = min(max((price_change_24h + 20) * 0.8, 0.0), 100.0)
 
@@ -76,12 +72,9 @@ class AIScorer:
         mom_score = min(max(mom_score, 0.0), 100.0)
 
         # 5. Risk Score (0-100)
-        # Taken directly from our deep risk analysis engine
         risk_score = risk_results.get("overall_risk_score", 50.0)
 
         # 6. Profit Score (0-100)
-        # High profit score when there is deep liquidity combined with explosive momentum and low risk.
-        # It measures the upside potential relative to the risk.
         liquidity = token_data.get("liquidity", 100000)
         liq_factor = min((liquidity / 1500000) * 100, 100)
 
@@ -89,8 +82,6 @@ class AIScorer:
         profit_score = min(max(profit_score, 0.0), 100.0)
 
         # 7. Overall Opportunity Score (0-100)
-        # Dynamically aggregate all scores using self-optimizing learning weights
-        # Also, if Risk Score is extremely high, we penalize the overall opportunity score significantly
         weighted_upside = (
             tech_score * self.weights.get("technical", 0.25) +
             social_score * self.weights.get("social", 0.20) +
@@ -99,15 +90,31 @@ class AIScorer:
             profit_score * self.weights.get("profit", 0.20)
         )
 
+        # Apply Narrative Performance Multiplier feedback
+        narrative = token_data.get("narrative", "General")
+        narrative_mult = self.narrative_multipliers.get(narrative, 1.0)
+        weighted_upside = weighted_upside * narrative_mult
+
         # Penalize overall opportunity score for security risk
         risk_penalty = 0.0
         if risk_score > 80.0:
-            risk_penalty = (risk_score - 80.0) * 2.5 # heavy penalty for scams/rugs
+            risk_penalty = (risk_score - 80.0) * 2.5
         elif risk_score > 50.0:
             risk_penalty = (risk_score - 50.0) * 0.8
 
         overall_score = max(weighted_upside - risk_penalty, 0.0)
         overall_score = min(overall_score, 100.0)
+
+        # Identify primary technical signal
+        primary_signal = "Trend Continuation"
+        if breakout_prob > 70.0:
+            primary_signal = "Bollinger Breakout"
+        elif whale_score > 70.0:
+            primary_signal = "Whale Accumulation"
+        elif rel_vol > 1.8:
+            primary_signal = "Volume Expansion"
+        elif social_score > 70.0:
+            primary_signal = "Social Momentum Surge"
 
         return {
             "technical_score": float(tech_score),
@@ -116,7 +123,9 @@ class AIScorer:
             "momentum_score": float(mom_score),
             "risk_score": float(risk_score),
             "profit_score": float(profit_score),
-            "overall_opportunity_score": float(overall_score)
+            "overall_opportunity_score": float(overall_score),
+            "narrative_multiplier": float(narrative_mult),
+            "primary_signal": primary_signal
         }
 
     def generate_trading_plan(self, current_price: float, ta_results: Dict[str, Any], risk_results: Dict[str, Any], scores: Dict[str, Any], token_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -127,46 +136,37 @@ class AIScorer:
         if atr <= 0:
             atr = current_price * 0.05
 
-        # Suggested entry is around current price or slightly lower if pulling back
         suggested_entry = current_price
 
-        # Stop loss based on average true range (ATR) or support levels
         supports = ta_results.get("support_levels", [])
         if len(supports) > 0 and supports[0] < current_price:
             stop_loss = max(supports[0], current_price - 1.5 * atr)
         else:
             stop_loss = current_price - 1.5 * atr
 
-        # If stop loss is <= 0, set to 50% of entry price
         if stop_loss <= 0:
             stop_loss = current_price * 0.8
 
-        # Take profits: TP1 (conservative), TP2 (moderate), TP3 (ambitious)
         tp_mults = [1.5, 3.0, 5.0]
-        # Adjust multiples if it's a high risk / high volatility meme coin vs low volatility layer-2
         narrative = token_data.get("narrative", "")
         if "Meme" in narrative:
-            tp_mults = [3.0, 6.0, 10.0] # Higher targets
+            tp_mults = [3.0, 6.0, 10.0]
         elif "Layer-2" in narrative or "RWA" in narrative:
-            tp_mults = [1.2, 2.5, 4.0] # Conservatively smaller targets
+            tp_mults = [1.2, 2.5, 4.0]
 
         tp1 = current_price + tp_mults[0] * atr
         tp2 = current_price + tp_mults[1] * atr
         tp3 = current_price + tp_mults[2] * atr
 
-        # Fibonacci level adjustments if they are close
         fibs = ta_results.get("fibonacci_levels", {})
         fib_0618 = fibs.get("0.618", current_price)
         if fib_0618 > current_price:
-            # Anchor one TP near golden pocket ratio
             tp2 = fib_0618
 
-        # Risk / Reward ratio (using TP2 relative to SL)
         potential_risk = suggested_entry - stop_loss
         potential_reward = tp2 - suggested_entry
         risk_reward_ratio = float(potential_reward / (potential_risk if potential_risk > 0 else 0.00001))
 
-        # Expected Holding Time based on technical indicators and volume
         rel_vol = ta_results.get("relative_volume", 1.0)
         if rel_vol > 2.0:
             expected_holding_time = "4 to 24 Hours"
@@ -175,10 +175,8 @@ class AIScorer:
         else:
             expected_holding_time = "3 to 7 Days"
 
-        # Confidence percentage (derived from overall score and risk levels)
         confidence = float(scores.get("overall_opportunity_score", 50.0))
 
-        # Reasons for selection text builder
         reasons = []
         if rel_vol > 1.5:
             reasons.append("unusual trading volume expansion")
